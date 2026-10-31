@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://wonderboxai.com'),
+  metadataBase: new URL('https://www.wonderboxai.com'),
   title: {
     default: 'Wonder Box | Screen-Free AI Storytelling & Physical Play',
     template: '%s | Wonder Box',

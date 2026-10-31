@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://wonderboxai.com';
+  const baseUrl = 'https://www.wonderboxai.com';
   const now = new Date();
 
   return [
