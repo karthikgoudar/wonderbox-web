@@ -5,21 +5,51 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, role, ageGroup, timestamp } = body;
 
-    // Logs directly in Vercel Runtime Logs immediately
-    console.log('[WONDERBOX WAITLIST LEAD]:', { email, role, ageGroup, timestamp });
-
-    // Optional: Add a Google Apps Script Webhook URL in Vercel env vars (GOOGLE_SHEET_WEBHOOK_URL)
-    // to automatically append every lead into a Google Sheet in karthik@wonderboxai.com's Drive!
-    if (process.env.GOOGLE_SHEET_WEBHOOK_URL) {
-      await fetch(process.env.GOOGLE_SHEET_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role, ageGroup, timestamp }),
-      });
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return NextResponse.json(
+        { ok: false, error: 'A valid email address is required.' },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({ ok: true });
+    const leadData = {
+      email: email.trim().toLowerCase(),
+      role: role || 'parent',
+      ageGroup: role === 'parent' ? ageGroup || '6-8' : 'N/A',
+      timestamp: timestamp || new Date().toISOString(),
+    };
+
+    // Log immediately in Vercel Serverless runtime logs
+    console.log('[NEW WONDERBOX WAITLIST LEAD]:', leadData);
+
+    // Forward to Google Apps Script Webhook (Google Sheets + Gmail notification)
+    const webhookUrl = process.env.GOOGLE_SHEET_WEBHOOK_URL;
+    if (webhookUrl) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(leadData),
+          redirect: 'follow', // Google Apps Script web apps return 302 redirects
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+      } catch (webhookErr) {
+        // Log webhook error without failing the user response
+        console.error('[WAITLIST WEBHOOK ERROR]:', webhookErr);
+      }
+    }
+
+    return NextResponse.json({ ok: true, message: 'Waitlist spot locked in.' });
   } catch (error) {
-    return NextResponse.json({ ok: false }, { status: 500 });
+    console.error('[WAITLIST SUBMIT ERROR]:', error);
+    return NextResponse.json(
+      { ok: false, error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
